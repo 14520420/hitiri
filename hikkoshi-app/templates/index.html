@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NewLife — 引越し・新生活サポート</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <!-- ─── SIDEBAR ──────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">🏠</span>
+      <span class="logo-text">NewLife</span>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-section="dashboard">
+        <span class="nav-icon">📊</span>
+        <span>ダッシュボード</span>
+      </button>
+      <button class="nav-item" data-section="tasks">
+        <span class="nav-icon">✅</span>
+        <span>手続きタスク</span>
+      </button>
+      <button class="nav-item" data-section="memo">
+        <span class="nav-icon">📝</span>
+        <span>生活メモ</span>
+      </button>
+      <button class="nav-item" data-section="train">
+        <span class="nav-icon">🚆</span>
+        <span>電車遅延情報</span>
+      </button>
+      <button class="nav-item" data-section="checklist">
+        <span class="nav-icon">📋</span>
+        <span>引越しチェック</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="move-date-widget">
+        <label>引越し予定日</label>
+        <input type="date" id="globalMoveDate" />
+        <button id="initTasksBtn">タスクを自動生成</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── MAIN ─────────────────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- ── ヘッダー ────────────────────────────────────────────── -->
+    <header class="topbar">
+      <h1 class="page-title" id="pageTitle">ダッシュボード</h1>
+      <div class="topbar-right">
+        <div class="train-badge" id="trainBadgeTop">
+          <span class="badge-dot normal"></span>
+          <span id="trainBadgeText">電車情報取得中...</span>
+        </div>
+        <span class="datetime" id="datetimeDisplay"></span>
+      </div>
+    </header>
+
+    <!-- ── ダッシュボード ───────────────────────────────────────── -->
+    <section class="section active" id="section-dashboard">
+      <div class="dashboard-grid">
+
+        <!-- 進捗カード -->
+        <div class="card progress-card">
+          <div class="card-label">完了タスク</div>
+          <div class="progress-ring-wrap">
+            <svg class="progress-ring" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" class="ring-bg"/>
+              <circle cx="60" cy="60" r="50" class="ring-fill" id="progressRing"/>
+            </svg>
+            <div class="progress-text">
+              <span id="completedCount">0</span>
+              <small>/ <span id="totalCount">0</span></small>
+            </div>
+          </div>
+          <p class="card-sub" id="progressLabel">タスクを読み込み中...</p>
+        </div>
+
+        <!-- 電車速報 -->
+        <div class="card train-card" id="dashTrainCard">
+          <div class="card-header">
+            <span class="card-label">🚆 電車遅延速報</span>
+            <button class="refresh-btn" onclick="fetchTrainInfo()">更新</button>
+          </div>
+          <div id="dashTrainContent" class="train-content-dash">
+            <div class="loading-pulse">情報を取得中...</div>
+          </div>
+          <div class="train-source" id="trainSourceDash"></div>
+        </div>
+
+        <!-- 期限が近いタスク -->
+        <div class="card upcoming-card">
+          <div class="card-label">⏰ 期限が近いタスク</div>
+          <div id="upcomingTasks" class="upcoming-list">
+            <div class="loading-pulse">読み込み中...</div>
+          </div>
+        </div>
+
+        <!-- 生活費サマリー -->
+        <div class="card budget-card">
+          <div class="card-label">💰 生活費メモ</div>
+          <div id="budgetSummary" class="budget-summary">
+            <div class="loading-pulse">読み込み中...</div>
+          </div>
+          <button class="link-btn" onclick="switchSection('memo')">メモを見る →</button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── タスク管理 ──────────────────────────────────────────── -->
+    <section class="section" id="section-tasks">
+      <div class="section-controls">
+        <div class="filter-tabs" id="categoryFilters">
+          <button class="filter-tab active" data-cat="all">すべて</button>
+        </div>
+        <button class="btn-primary" onclick="openAddTask()">＋ タスク追加</button>
+      </div>
+
+      <div id="tasksList" class="tasks-container">
+        <div class="loading-pulse">タスクを読み込み中...</div>
+      </div>
+    </section>
+
+    <!-- ── 生活メモ ──────────────────────────────────────────────── -->
+    <section class="section" id="section-memo">
+      <div class="memo-layout">
+        <div class="memo-form card">
+          <h3>メモを追加</h3>
+          <div class="form-group">
+            <label>種類</label>
+            <select id="memoType">
+              <option value="expense">生活費・支出</option>
+              <option value="contact">連絡先</option>
+              <option value="important">重要情報</option>
+              <option value="general">その他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>タイトル</label>
+            <input type="text" id="memoTitle" placeholder="例：家賃、管理費..." />
+          </div>
+          <div class="form-group">
+            <label>金額（費用の場合）</label>
+            <input type="number" id="memoAmount" placeholder="円" />
+          </div>
+          <div class="form-group">
+            <label>メモ内容</label>
+            <textarea id="memoContent" rows="3" placeholder="詳細を入力..."></textarea>
+          </div>
+          <button class="btn-primary" onclick="addMemo()">保存</button>
+        </div>
+
+        <div class="memo-list" id="memosList">
+          <div class="loading-pulse">読み込み中...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 電車遅延 ──────────────────────────────────────────────── -->
+    <section class="section" id="section-train">
+      <div class="train-header">
+        <p class="train-desc">Yahoo!路線情報より関東エリアの遅延情報をリアルタイム取得</p>
+        <button class="btn-primary" onclick="fetchTrainInfo()">🔄 最新情報を取得</button>
+      </div>
+
+      <div id="trainDelayContent" class="train-full-content">
+        <div class="loading-pulse">電車情報を取得中...</div>
+      </div>
+    </section>
+
+    <!-- ── 引越しチェックリスト ────────────────────────────────── -->
+    <section class="section" id="section-checklist">
+      <div class="checklist-intro card">
+        <h3>📋 引越し完全チェックリスト</h3>
+        <p>引越し前〜引越し後のやることを網羅したリストです。チェックしながら進めましょう。</p>
+      </div>
+      <div id="checklistContent" class="checklist-grid"></div>
+    </section>
+
+  </main>
+
+  <!-- ── モーダル: タスク追加 ────────────────────────────────── -->
+  <div class="modal-overlay" id="addTaskModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>タスクを追加</h3>
+        <button class="modal-close" onclick="closeModal('addTaskModal')">✕</button>
+      </div>
+      <div class="form-group">
+        <label>タイトル</label>
+        <input type="text" id="newTaskTitle" placeholder="タスク名を入力" />
+      </div>
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select id="newTaskCategory">
+          <option>手続き</option>
+          <option>引越し作業</option>
+          <option>生活準備</option>
+          <option>仕事・社会人</option>
+          <option>その他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>期限日</label>
+        <input type="date" id="newTaskDeadline" />
+      </div>
+      <div class="form-group">
+        <label>優先度</label>
+        <select id="newTaskPriority">
+          <option value="high">🔴 高</option>
+          <option value="medium" selected>🟡 中</option>
+          <option value="low">🟢 低</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>メモ</label>
+        <textarea id="newTaskNote" rows="2" placeholder="補足情報..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('addTaskModal')">キャンセル</button>
+        <button class="btn-primary" onclick="addTask()">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- トースト通知 -->
+  <div class="toast" id="toast"></div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
